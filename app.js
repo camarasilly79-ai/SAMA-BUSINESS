@@ -92,6 +92,73 @@ function put(storeName, value) {
   });
 }
 
+/* SYNCHRONISATION DES PRODUITS AVEC SUPABASE */
+
+function toCloudProduct(product) {
+  return {
+    id: product.id,
+    business_id: currentBusinessId,
+    name: product.name,
+    sale_price: Number(product.price || 0),
+    purchase_cost: Number(product.cost || 0),
+    stock_quantity: Number(product.stock || 0),
+    low_stock_threshold: Number(product.threshold ?? 5),
+    is_active: true
+  };
+}
+
+function fromCloudProduct(product) {
+  return {
+    id: product.id,
+    name: product.name,
+    price: Number(product.sale_price || 0),
+    cost: Number(product.purchase_cost || 0),
+    stock: Number(product.stock_quantity || 0),
+    threshold: Number(product.low_stock_threshold ?? 5),
+    date: product.created_at || new Date().toISOString()
+  };
+}
+
+async function syncProductsFromCloud() {
+  const { data, error } = await supabaseClient
+    .from("products")
+    .select("*")
+    .eq("business_id", currentBusinessId)
+    .eq("is_active", true);
+
+  if (error) throw error;
+
+  const localProducts = await all("products");
+
+  // Première synchronisation : récupérer les anciens produits du téléphone.
+  if (data.length === 0 && localProducts.length > 0) {
+    const productsToUpload = localProducts.map(toCloudProduct);
+
+    const { error: uploadError } = await supabaseClient
+      .from("products")
+      .upsert(productsToUpload);
+
+    if (uploadError) throw uploadError;
+
+    return;
+  }
+
+  // Le cloud devient la référence pour les produits.
+  await new Promise((resolve, reject) => {
+    const transaction = db.transaction("products", "readwrite");
+    const store = transaction.objectStore("products");
+
+    store.clear();
+
+    data.forEach((product) => {
+      store.put(fromCloudProduct(product));
+    });
+
+    transaction.oncomplete = resolve;
+    transaction.onerror = () => reject(transaction.error);
+  });
+}
+
 function dayRecords(records) {
   const today = new Date().toDateString();
 
