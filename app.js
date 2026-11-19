@@ -766,7 +766,7 @@ function setupNavigation() {
       });
 
       document.querySelectorAll(".view").forEach((view) => {
-        view.classList.toggle("active", view.id === viewName);
+        view.classList.toggle("active", view.id === "view-" + viewName);
       });
     });
   });
