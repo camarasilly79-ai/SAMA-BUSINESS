@@ -5,7 +5,7 @@
 */
 
 const SUPABASE_URL = "https://pumazxowmymwmfthlbqw.supabase.co";
-const SUPABASE_KEY = "sb_publishable_P2l8NGP6cJPBoWvburtXCg_mz7HI1k";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB1bWF6eG93bXltd21mdGhsYnF3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTUwMzc5MTIsImV4cCI6MjExMDYxMzkxMn0.2gVhfIMDxx4JlU5LG-pIDuht7T5D50loJOi7TQE3hYY";
 
 const supabaseClient = window.supabase.createClient(
   SUPABASE_URL,
