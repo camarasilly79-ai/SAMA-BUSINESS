@@ -1,101 +1,303 @@
+
+
 <!doctype html>
+
 <html lang="fr">
+
 <head>
+
   <meta charset="utf-8">
+
   <meta name="viewport" content="width=device-width,initial-scale=1">
+
   <meta name="theme-color" content="#123c32">
+
   <meta name="description" content="SAMA BUSINESS - gestion simple de votre commerce">
+
   <link rel="manifest" href="manifest.webmanifest">
+
   <link rel="icon" href="assets/icon.svg">
+
   <link rel="stylesheet" href="styles.css">
+
   <title>SAMA BUSINESS</title>
+
 </head>
+
 <body>
-<header class="topbar">
-  <div class="brand"><span class="logo">SB</span><span><b>SAMA BUSINESS</b><small>Votre commerce, mieux organisé.</small></span></div>
-  <span id="connection" class="pill">Vérification…</span>
-</header>
-<main>
-  <section class="welcome">
-    <div><p class="eyebrow">ESPACE COMMERÇANT</p><h1>Bonjour 👋</h1><p class="muted">Voici la situation de votre commerce.</p></div>
-    <label class="lang">Langue
-      <select id="language"><option value="fr">Français</option><option value="wo">Wolof (interface à compléter)</option><option value="en">English</option></select>
-    </label>
-  </section>
-  <section class="metrics">
-    <article class="metric"><span>Chiffre d'affaires</span><strong id="revenue">0 F</strong><small>Aujourd'hui</small></article>
-    <article class="metric"><span>Dépenses</span><strong id="expenses">0 F</strong><small>Aujourd'hui</small></article>
-    <article class="metric"><span>Résultat estimé</span><strong id="profit">0 F</strong><small>Ventes - coûts - dépenses</small></article>
-    <article class="metric"><span>Articles en stock</span><strong id="stockCount">0</strong><small>Unités disponibles</small></article>
-  </section>
-  <nav class="tabs" aria-label="Navigation">
-    <button class="tab active" data-view="dashboard">Accueil</button>
-    <button class="tab" data-view="sales">Ventes</button>
-    <button class="tab" data-view="products">Produits</button>
-    <button class="tab" data-view="expenses">Dépenses</button>
-  </nav>
 
-  <section id="view-dashboard" class="view">
-    <div class="section-heading"><h2>Vue d'ensemble</h2><button id="refresh" class="button light">Actualiser</button></div>
-    <div class="panel"><h3>Alertes de stock</h3><div id="alerts" class="empty">Aucune alerte.</div></div>
-    <div class="panel"><h3>Dernières opérations</h3><div id="recent" class="empty">Aucune opération enregistrée.</div></div>
-    <p class="note">Les données saisies sur cet appareil restent disponibles hors connexion. Configurez Supabase pour activer la sauvegarde en ligne et le partage entre appareils.</p>
-  </section>
+<section id="authScreen" class="auth-screen">
 
-  <section id="view-sales" class="view hidden">
-    <h2>Nouvelle vente</h2>
-    <form id="saleForm" class="panel form">
-      <label>Produit<select id="saleProduct" required></select></label>
-      <div class="two">
-        <label>Quantité<input id="saleQty" type="number" min="1" step="1" value="1" required></label>
-        <label>Paiement<select id="salePayment"><option>Espèces</option><option>Wave</option><option>Orange Money</option><option>Autre</option></select></label>
+  <div class="auth-card">
+
+    <div class="auth-brand">
+
+      <span class="logo">SB</span>
+
+      <div>
+
+        <b>SAMA BUSINESS</b>
+
+        <small>Votre commerce, mieux organisé.</small>
+
       </div>
-      <button class="button primary" type="submit">Enregistrer la vente</button>
-      <p id="saleMessage" class="message" aria-live="polite"></p>
-    </form>
-    <div class="panel"><h3>Historique des ventes</h3><div id="salesList" class="empty">Aucune vente.</div></div>
-  </section>
 
-  <section id="view-products" class="view hidden">
-    <h2>Produits et stocks</h2>
-    <form id="productForm" class="panel form">
-      <label>Nom du produit<input id="productName" required maxlength="80" placeholder="Ex. Baguette"></label>
-      <div class="two">
-        <label>Prix de vente (FCFA)<input id="productPrice" type="number" min="1" step="1" required></label>
-        <label>Coût unitaire (FCFA)<input id="productCost" type="number" min="0" step="1" value="0" required></label>
-      </div>
-      <label>Stock initial<input id="productStock" type="number" min="0" step="1" value="0" required></label>
-      <button class="button primary" type="submit">Ajouter le produit</button>
-      <p id="productMessage" class="message" aria-live="polite"></p>
-    </form>
-    <div class="panel"><h3>Inventaire</h3><div id="productsList" class="empty">Aucun produit.</div></div>
-  </section>
-
-  <section id="view-expenses" class="view hidden">
-    <h2>Enregistrer une dépense</h2>
-    <form id="expenseForm" class="panel form">
-      <label>Motif<input id="expenseName" maxlength="100" required placeholder="Ex. Électricité"></label>
-      <label>Montant (FCFA)<input id="expenseAmount" type="number" min="1" step="1" required></label>
-      <button class="button primary" type="submit">Enregistrer la dépense</button>
-      <p id="expenseMessage" class="message" aria-live="polite"></p>
-    </form>
-    <div class="panel"><h3>Historique des dépenses</h3><div id="expensesList" class="empty">Aucune dépense.</div></div>
-  </section>
-
-  <section class="panel settings">
-    <h3>Sauvegarde en ligne (configuration technique)</h3>
-    <p class="muted">La V1 fonctionne localement. Pour synchroniser plusieurs appareils, un administrateur doit configurer Supabase et appliquer le fichier <code>supabase/schema.sql</code>.</p>
-    <div class="two">
-      <label>URL Supabase<input id="supabaseUrl" placeholder="https://xxxx.supabase.co"></label>
-      <label>Clé publique anon<input id="supabaseKey" placeholder="Clé anon publique"></label>
     </div>
-    <label>Identifiant du commerce<input id="businessId" placeholder="UUID du commerce"></label>
-    <button id="saveConfig" class="button light">Enregistrer la configuration</button>
-    <p id="configMessage" class="message"></p>
-    <p class="warning">Ne collez jamais une clé service_role ici. Cette maquette n'active pas encore la synchronisation distante : ne l'utilisez pas pour des données commerciales réelles.</p>
-  </section>
-</main>
-<footer>SAMA BUSINESS · Prototype V1 · FCFA</footer>
+
+    <div class="auth-intro">
+
+      <p class="eyebrow">BIENVENUE</p>
+
+      <h1 id="authTitle">Créer votre compte</h1>
+
+      <p class="muted" id="authSubtitle">Démarrez avec 7 jours d'essai gratuit.</p>
+
+    </div>
+
+    <form id="signupForm" class="form">
+
+      <label>Votre nom
+
+        <input id="fullName" type="text" maxlength="100" autocomplete="name" required placeholder="Votre nom complet">
+
+      </label>
+
+      <label>Nom du commerce
+
+        <input id="businessName" type="text" maxlength="100" required placeholder="Ex. Boutique Camara">
+
+      </label>
+
+      <label>Adresse e-mail
+
+        <input id="authEmail" type="email" autocomplete="email" required placeholder="exemple@email.com">
+
+      </label>
+
+      <label>Mot de passe
+
+        <input id="authPassword" type="password" minlength="8" autocomplete="new-password" required placeholder="8 caractères minimum">
+
+      </label>
+
+      <button class="button primary" type="submit" id="signupButton">Créer mon compte</button>
+
+      <p id="signupMessage" class="message" aria-live="polite"></p>
+
+    </form>
+
+    <form id="loginForm" class="form hidden">
+
+      <label>Adresse e-mail
+
+        <input id="loginEmail" type="email" autocomplete="email" required placeholder="exemple@email.com">
+
+      </label>
+
+      <label>Mot de passe
+
+        <input id="loginPassword" type="password" autocomplete="current-password" required placeholder="Votre mot de passe">
+
+      </label>
+
+      <button class="button primary" type="submit">Se connecter</button>
+
+      <p id="loginMessage" class="message" aria-live="polite"></p>
+
+    </form>
+
+    <div class="auth-switch">
+
+      <span id="authSwitchText">Vous avez déjà un compte ?</span>
+
+      <button type="button" id="authSwitch" class="text-button">Se connecter</button>
+
+    </div>
+
+  </div>
+
+</section>
+
+<div id="appShell" hidden>
+
+  <header class="topbar">
+
+    <div class="brand">
+
+      <span class="logo">SB</span>
+
+      <span><b>SAMA BUSINESS</b><small>Votre commerce, mieux organisé.</small></span>
+
+    </div>
+
+    <div class="header-actions">
+
+      <span id="connection" class="pill">Vérification…</span>
+
+      <button id="logoutButton" class="button light">Déconnexion</button>
+
+    </div>
+
+  </header>
+
+  <main>
+
+    <section class="welcome">
+
+      <div>
+
+        <p class="eyebrow">ESPACE COMMERÇANT</p>
+
+        <h1>Bonjour <span id="welcomeName"></span> 👋</h1>
+
+        <p class="muted" id="businessLabel">Voici la situation de votre commerce.</p>
+
+      </div>
+
+      <label class="lang">Langue
+
+        <select id="language">
+
+          <option value="fr">Français</option>
+
+          <option value="wo">Wolof</option>
+
+          <option value="en">English</option>
+
+        </select>
+
+      </label>
+
+    </section>
+
+    <section id="subscriptionBanner" class="panel">
+
+      <h3>Votre abonnement</h3>
+
+      <p id="subscriptionInfo" class="muted">Chargement de votre abonnement…</p>
+
+    </section>
+
+    <section class="metrics">
+
+      <article class="metric"><span>Chiffre d'affaires</span><strong id="revenue">0 F</strong><small>Aujourd'hui</small></article>
+
+      <article class="metric"><span>Dépenses</span><strong id="expenses">0 F</strong><small>Aujourd'hui</small></article>
+
+      <article class="metric"><span>Résultat estimé</span><strong id="profit">0 F</strong><small>Ventes - coûts - dépenses</small></article>
+
+      <article class="metric"><span>Articles en stock</span><strong id="stockCount">0</strong><small>Unités disponibles</small></article>
+
+    </section>
+
+    <nav class="tabs" aria-label="Navigation">
+
+      <button class="tab active" data-view="dashboard">Accueil</button>
+
+      <button class="tab" data-view="sales">Ventes</button>
+
+      <button class="tab" data-view="products">Produits</button>
+
+      <button class="tab" data-view="expenses">Dépenses</button>
+
+    </nav>
+
+    <section id="view-dashboard" class="view">
+
+      <div class="section-heading"><h2>Vue d'ensemble</h2><button id="refresh" class="button light">Actualiser</button></div>
+
+      <div class="panel"><h3>Alertes de stock</h3><div id="alerts" class="empty">Aucune alerte.</div></div>
+
+      <div class="panel"><h3>Dernières opérations</h3><div id="recent" class="empty">Aucune opération enregistrée.</div></div>
+
+      <p class="note">Vos données seront progressivement synchronisées avec votre espace sécurisé.</p>
+
+    </section>
+
+    <section id="view-sales" class="view hidden">
+
+      <h2>Nouvelle vente</h2>
+
+      <form id="saleForm" class="panel form">
+
+        <label>Produit<select id="saleProduct" required></select></label>
+
+        <div class="two">
+
+          <label>Quantité<input id="saleQty" type="number" min="1" step="1" value="1" required></label>
+
+          <label>Paiement<select id="salePayment"><option>Espèces</option><option>Wave</option><option>Orange Money</option><option>Autre</option></select></label>
+
+        </div>
+
+        <button class="button primary" type="submit">Enregistrer la vente</button>
+
+        <p id="saleMessage" class="message" aria-live="polite"></p>
+
+      </form>
+
+      <div class="panel"><h3>Historique des ventes</h3><div id="salesList" class="empty">Aucune vente.</div></div>
+
+    </section>
+
+    <section id="view-products" class="view hidden">
+
+      <h2>Produits et stocks</h2>
+
+      <form id="productForm" class="panel form">
+
+        <label>Nom du produit<input id="productName" required maxlength="80" placeholder="Ex. Baguette"></label>
+
+        <div class="two">
+
+          <label>Prix de vente (FCFA)<input id="productPrice" type="number" min="1" step="1" required></label>
+
+          <label>Coût unitaire (FCFA)<input id="productCost" type="number" min="0" step="1" value="0" required></label>
+
+        </div>
+
+        <label>Stock initial<input id="productStock" type="number" min="0" step="1" value="0" required></label>
+
+        <button class="button primary" type="submit">Ajouter le produit</button>
+
+        <p id="productMessage" class="message" aria-live="polite"></p>
+
+      </form>
+
+      <div class="panel"><h3>Inventaire</h3><div id="productsList" class="empty">Aucun produit.</div></div>
+
+    </section>
+
+    <section id="view-expenses" class="view hidden">
+
+      <h2>Enregistrer une dépense</h2>
+
+      <form id="expenseForm" class="panel form">
+
+        <label>Motif<input id="expenseName" maxlength="100" required placeholder="Ex. Électricité"></label>
+
+        <label>Montant (FCFA)<input id="expenseAmount" type="number" min="1" step="1" required></label>
+
+        <button class="button primary" type="submit">Enregistrer la dépense</button>
+
+        <p id="expenseMessage" class="message" aria-live="polite"></p>
+
+      </form>
+
+      <div class="panel"><h3>Historique des dépenses</h3><div id="expensesList" class="empty">Aucune dépense.</div></div>
+
+    </section>
+
+  </main>
+
+  <footer>SAMA BUSINESS · FCFA</footer>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
 <script src="app.js"></script>
+
 </body>
+
 </html>
