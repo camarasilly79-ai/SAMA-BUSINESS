@@ -428,20 +428,15 @@ async function startApplication() {
 
   showApp();
 
-  if ($("welcomeName")) {
-    $("welcomeName").textContent =
-      currentUser.user_metadata?.full_name || currentUser.email;
-  }
-
-  if ($("businessLabel")) {
-    $("businessLabel").textContent = currentBusinessName;
-  }
-
-  if ($("connection")) {
-    $("connection").textContent = "Connecté à Supabase";
-  }
-
   renderSubscription();
+
+  try {
+    await syncProductsFromCloud();
+  } catch (error) {
+    console.error("Synchronisation des produits :", error);
+    alert("Erreur de synchronisation : " + error.message);
+  }
+
   await render();
 }
 
