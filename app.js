@@ -621,6 +621,7 @@ function renderRecent(sales, expenses) {
 
 /* AJOUT PRODUIT */
 
+
 async function addProduct(event) {
   event.preventDefault();
 
@@ -629,12 +630,12 @@ async function addProduct(event) {
   const cost = Number($("productCost")?.value || 0);
   const stock = Number($("productStock")?.value);
 
-  if (!name || price < 0 || stock < 0) {
+  if (!name || price < 0 || stock < 0 || !currentBusinessId) {
     setMessage("productMessage", "Vérifie les informations du produit.", true);
     return;
   }
 
-  await put("products", {
+  const localProduct = {
     id: uuid(),
     name,
     price,
@@ -642,7 +643,19 @@ async function addProduct(event) {
     stock,
     threshold: 5,
     date: new Date().toISOString()
-  });
+  };
+
+  const { error } = await supabaseClient
+    .from("products")
+    .insert(toCloudProduct(localProduct));
+
+  if (error) {
+    console.error("Erreur Supabase :", error);
+    setMessage("productMessage", "Erreur d'enregistrement : " + error.message, true);
+    return;
+  }
+
+  await put("products", localProduct);
 
   $("productForm").reset();
   setMessage("productMessage", "Produit enregistré avec succès.");
