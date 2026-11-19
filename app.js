@@ -664,6 +664,7 @@ async function addProduct(event) {
 
 /* ENREGISTRER UNE VENTE */
 
+
 async function addSale(event) {
   event.preventDefault();
 
@@ -671,7 +672,7 @@ async function addSale(event) {
   const quantity = Number($("saleQty")?.value);
   const payment = $("salePayment")?.value || "cash";
 
-  if (!productId || quantity <= 0) {
+  if (!productId || quantity <= 0 || !currentBusinessId) {
     setMessage("saleMessage", "Choisis un produit et une quantité valide.", true);
     return;
   }
@@ -689,8 +690,27 @@ async function addSale(event) {
     return;
   }
 
-  product.stock = Number(product.stock) - quantity;
+  const newStock = Number(product.stock) - quantity;
 
+  const { data, error } = await supabaseClient
+    .from("products")
+    .update({ stock_quantity: newStock })
+    .eq("id", productId)
+    .eq("business_id", currentBusinessId)
+    .select("id")
+    .maybeSingle();
+
+  if (error || !data) {
+    console.error("Erreur de mise à jour du stock :", error);
+    setMessage(
+      "saleMessage",
+      error ? "Erreur Supabase : " + error.message : "Produit introuvable dans le cloud.",
+      true
+    );
+    return;
+  }
+
+  product.stock = newStock;
   await put("products", product);
 
   await put("sales", {
@@ -705,7 +725,7 @@ async function addSale(event) {
   });
 
   $("saleForm").reset();
-  setMessage("saleMessage", "Vente enregistrée. Stock mis à jour.");
+  setMessage("saleMessage", "Vente enregistrée. Stock cloud mis à jour.");
   await render();
 }
 
