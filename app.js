@@ -490,9 +490,15 @@ async function startApplication() {
     alert("Erreur de synchronisation : " + error.message);
   }
 
+  try {
+    await syncSalesFromCloud();
+  } catch (error) {
+    console.error("Synchronisation des ventes :", error);
+    alert("Erreur de synchronisation des ventes : " + error.message);
+  }
+
   await render();
 }
-
 async function logout() {
   const { error } = await supabaseClient.auth.signOut();
 
