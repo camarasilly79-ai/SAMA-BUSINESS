@@ -159,6 +159,59 @@ async function syncProductsFromCloud() {
   });
 }
 
+async function syncSalesFromCloud() {
+  const { data, error } = await supabaseClient
+    .from("sales")
+    .select(`
+      id,
+      total_amount,
+      payment_method,
+      occurred_at,
+      sale_items (
+        product_id,
+        product_name_snapshot,
+        quantity,
+        unit_price
+      )
+    `)
+    .eq("business_id", currentBusinessId)
+    .order("occurred_at", { ascending: false });
+
+  if (error) throw error;
+
+  const localSales = await all("sales");
+  const salesMap = new Map(
+    localSales.map((sale) => [sale.id, sale])
+  );
+
+  data.forEach((sale) => {
+    const item = sale.sale_items?.[0];
+
+    salesMap.set(sale.id, {
+      id: sale.id,
+      productId: item?.product_id || null,
+      productName: item?.product_name_snapshot || "Vente",
+      quantity: Number(item?.quantity || 0),
+      unitPrice: Number(item?.unit_price || 0),
+      total: Number(sale.total_amount || 0),
+      payment: sale.payment_method,
+      date: sale.occurred_at
+    });
+  });
+
+  await new Promise((resolve, reject) => {
+    const transaction = db.transaction("sales", "readwrite");
+    const store = transaction.objectStore("sales");
+
+    store.clear();
+
+    salesMap.forEach((sale) => store.put(sale));
+
+    transaction.oncomplete = resolve;
+    transaction.onerror = () => reject(transaction.error);
+  });
+}
+
 function dayRecords(records) {
   const today = new Date().toDateString();
 
