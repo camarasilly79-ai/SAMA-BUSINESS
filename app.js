@@ -665,6 +665,7 @@ async function addProduct(event) {
 /* ENREGISTRER UNE VENTE */
 
 
+
 async function addSale(event) {
   event.preventDefault();
 
@@ -690,31 +691,39 @@ async function addSale(event) {
     return;
   }
 
-  const newStock = Number(product.stock) - quantity;
+  const { data: saleId, error } = await supabaseClient.rpc(
+    "create_sale",
+    {
+      p_business_id: currentBusinessId,
+      p_product_id: productId,
+      p_quantity: quantity,
+      p_payment_method: payment
+    }
+  );
 
-  const { data, error } = await supabaseClient
-    .from("products")
-    .update({ stock_quantity: newStock })
-    .eq("id", productId)
-    .eq("business_id", currentBusinessId)
-    .select("id")
-    .maybeSingle();
-
-  if (error || !data) {
-    console.error("Erreur de mise à jour du stock :", error);
-    setMessage(
-      "saleMessage",
-      error ? "Erreur Supabase : " + error.message : "Produit introuvable dans le cloud.",
-      true
-    );
+  if (error) {
+    console.error("Erreur d'enregistrement de la vente :", error);
+    setMessage("saleMessage", "Erreur : " + error.message, true);
     return;
   }
 
-  product.stock = newStock;
-  await put("products", product);
+  const { data: cloudProduct, error: productError } = await supabaseClient
+    .from("products")
+    .select("*")
+    .eq("id", productId)
+    .eq("business_id", currentBusinessId)
+    .maybeSingle();
+
+  if (cloudProduct) {
+    await put("products", fromCloudProduct(cloudProduct));
+  } else {
+    product.stock = Number(product.stock) - quantity;
+    await put("products", product);
+    console.error("Actualisation du stock :", productError);
+  }
 
   await put("sales", {
-    id: uuid(),
+    id: saleId,
     productId,
     productName: product.name,
     quantity,
@@ -725,10 +734,10 @@ async function addSale(event) {
   });
 
   $("saleForm").reset();
-  setMessage("saleMessage", "Vente enregistrée. Stock cloud mis à jour.");
+  setMessage("saleMessage", "Vente enregistrée et synchronisée avec succès.");
+
   await render();
 }
-
 /* AJOUT DÉPENSE */
 
 async function addExpense(event) {
