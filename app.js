@@ -1,5 +1,4 @@
 
-
 /* SAMA BUSINESS V1
    Authentification Supabase + gestion locale IndexedDB.
    La synchronisation des données sera ajoutée dans une prochaine étape.
@@ -1002,5 +1001,4 @@ async function init() {
 }
 
 document.addEventListener("DOMContentLoaded", init);
-
 
