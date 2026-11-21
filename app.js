@@ -879,6 +879,12 @@ async function addExpense(event) {
 /* NAVIGATION */
 
 function setupNavigation() {
+  const initial = document.querySelector("[data-view].active")?.dataset.view || "dashboard";
+  document.querySelectorAll(".view").forEach((view) => {
+    const selected = view.id === "view-" + initial;
+    view.classList.toggle("active", selected);
+    view.classList.toggle("hidden", !selected);
+  });
   document.querySelectorAll("[data-view]").forEach((button) => {
     button.addEventListener("click", () => {
       const viewName = button.dataset.view;
@@ -888,45 +894,108 @@ function setupNavigation() {
       });
 
       document.querySelectorAll(".view").forEach((view) => {
-        view.classList.toggle("active", view.id === "view-" + viewName);
+        const selected = view.id === "view-" + viewName;
+        view.classList.toggle("active", selected);
+        // .hidden uses display:none !important; remove it from the selected panel.
+        view.classList.toggle("hidden", !selected);
       });
     });
   });
 }
 
-/* LANGUE */
-
+/* LANGUE : traduction de l'ensemble de l'interface */
 const translations = {
-  fr: { "Bonjour": "Bonjour", "Accueil": "Accueil", "Ventes": "Ventes", "Produits": "Produits", "Dépenses": "Dépenses", "Actualiser": "Actualiser", "Vue d'ensemble": "Vue d'ensemble", "Alertes de stock": "Alertes de stock", "Dernières opérations": "Dernières opérations", "Nouvelle vente": "Nouvelle vente", "Enregistrer la vente": "Enregistrer la vente", "Historique des ventes": "Historique des ventes", "Produits et stocks": "Produits et stocks", "Ajouter le produit": "Ajouter le produit", "Inventaire": "Inventaire", "Enregistrer une dépense": "Enregistrer une dépense", "Enregistrer la dépense": "Enregistrer la dépense", "Déconnexion": "Déconnexion", "Langue": "Langue" },
-  en: { "Bonjour": "Hello", "Accueil": "Home", "Ventes": "Sales", "Produits": "Products", "Dépenses": "Expenses", "Actualiser": "Refresh", "Vue d'ensemble": "Overview", "Alertes de stock": "Stock alerts", "Dernières opérations": "Recent activity", "Nouvelle vente": "New sale", "Enregistrer la vente": "Save sale", "Historique des ventes": "Sales history", "Produits et stocks": "Products and stock", "Ajouter le produit": "Add product", "Inventaire": "Inventory", "Enregistrer une dépense": "Add an expense", "Enregistrer la dépense": "Save expense", "Déconnexion": "Log out", "Langue": "Language" },
-  wo: { "Bonjour": "Asalaam aleekum", "Accueil": "Kër", "Ventes": "Jaay yi", "Produits": "Mbootayu jaay", "Dépenses": "Fay yi", "Actualiser": "Yeesal", "Vue d'ensemble": "Xoolal bu yàgg", "Alertes de stock": "Yëgle ci stock", "Dernières opérations": "Jëf yi mujj", "Nouvelle vente": "Jaay bu bees", "Enregistrer la vente": "Denc jaay bi", "Historique des ventes": "Jaay yi weesu", "Produits et stocks": "Mbootay ak stock", "Ajouter le produit": "Yokk mboot", "Inventaire": "Li nekk ci stock", "Enregistrer une dépense": "Denc fay", "Enregistrer la dépense": "Denc fay bi", "Déconnexion": "Génn", "Langue": "Làkk" }
+  fr: {},
+  en: {
+    "Bonjour": "Hello", "Votre commerce, mieux organisé.": "Your business, better organized.",
+    "ESPACE COMMERÇANT": "BUSINESS SPACE", "Voici la situation de votre commerce.": "Here is your business overview.",
+    "Langue": "Language", "Votre abonnement": "Your subscription", "Chargement de votre abonnement…": "Loading your subscription…",
+    "Chiffre d'affaires": "Revenue", "Dépenses": "Expenses", "Résultat estimé": "Estimated profit", "Articles en stock": "Items in stock",
+    "Aujourd'hui": "Today", "Unités disponibles": "Available units", "Ventes - coûts - dépenses": "Sales - costs - expenses",
+    "Accueil": "Home", "Ventes": "Sales", "Produits": "Products", "Vue d'ensemble": "Overview", "Actualiser": "Refresh",
+    "Alertes de stock": "Low-stock alerts", "Dernières opérations": "Recent activity", "Aucune alerte de stock.": "No stock alerts.",
+    "Aucune opération récente.": "No recent activity.", "Aucune opération enregistrée.": "No activity recorded.",
+    "Vos données seront progressivement synchronisées avec votre espace sécurisé.": "Your data will be synchronized with your secure account.",
+    "Nouvelle vente": "New sale", "Produit": "Product", "Quantité": "Quantity", "Paiement": "Payment",
+    "Espèces": "Cash", "Autre": "Other", "Enregistrer la vente": "Save sale", "Historique des ventes": "Sales history",
+    "Aucune vente enregistrée.": "No sales recorded.", "Produits et stocks": "Products and stock", "Nom du produit": "Product name",
+    "Prix de vente (FCFA)": "Selling price (FCFA)", "Coût unitaire (FCFA)": "Unit cost (FCFA)", "Stock initial": "Initial stock",
+    "Ajouter le produit": "Add product", "Inventaire": "Inventory", "Aucun produit enregistré.": "No products recorded.",
+    "Enregistrer une dépense": "Record an expense", "Motif": "Description", "Montant (FCFA)": "Amount (FCFA)",
+    "Enregistrer la dépense": "Save expense", "Historique des dépenses": "Expense history", "Aucune dépense enregistrée.": "No expenses recorded.",
+    "Déconnexion": "Log out", "Modifier": "Edit", "Supprimer": "Delete", "Coût d'achat :": "Purchase cost:",
+    "Stock :": "Stock:", "unité(s)": "unit(s)", "restant(s)": "remaining", "Stock faible :": "Low stock:",
+    "Essai gratuit de 7 jours — fin le": "7-day free trial — ends on", "Ton essai gratuit est en cours.": "Your free trial is active.",
+    "Créer votre compte": "Create your account", "Démarrez avec 7 jours d'essai gratuit.": "Start with a 7-day free trial.",
+    "Votre nom": "Your name", "Nom du commerce": "Business name", "Adresse e-mail": "Email address", "Mot de passe": "Password",
+    "Créer mon compte": "Create my account", "Se connecter": "Log in", "Vous avez déjà un compte ?": "Already have an account?",
+    "Pas encore de compte ?": "Don't have an account yet?", "Votre nom complet": "Your full name", "8 caractères minimum": "At least 8 characters",
+    "Ex. Boutique Camara": "e.g. Camara Shop", "Ex. Baguette": "e.g. Baguette", "Ex. Électricité": "e.g. Electricity",
+    "Choisir un produit": "Choose a product", "Aucune vente.": "No sales.", "Aucun produit.": "No products.", "Aucune dépense.": "No expenses."
+  },
+  wo: {
+    "Bonjour": "Asalaam aleekum", "Votre commerce, mieux organisé.": "Sa jaay bi, doxal ko bu baax.",
+    "ESPACE COMMERÇANT": "BARABU JAAYKAT", "Voici la situation de votre commerce.": "Nii la sa jaay bi deme.",
+    "Langue": "Làkk", "Votre abonnement": "Sa abonmaa", "Chargement de votre abonnement…": "Mi ngi yeb abonmaa…",
+    "Chiffre d'affaires": "Li nga jaay", "Dépenses": "Fay yi", "Résultat estimé": "Njariñ wi ñu xayma", "Articles en stock": "Mboot yu nekk ci stock",
+    "Aujourd'hui": "Tey", "Unités disponibles": "Lim bi nekk", "Ventes - coûts - dépenses": "Jaay - njëg - fay",
+    "Accueil": "Kër", "Ventes": "Jaay yi", "Produits": "Mboot yi", "Vue d'ensemble": "Xoolal bu yàgg", "Actualiser": "Yeesal",
+    "Alertes de stock": "Yëgle ci stock", "Dernières opérations": "Jëf yi mujj", "Aucune alerte de stock.": "Amul yëgle ci stock.",
+    "Aucune opération récente.": "Amul jëf ju bees.", "Aucune opération enregistrée.": "Amul jëf buñ denc.",
+    "Vos données seront progressivement synchronisées avec votre espace sécurisé.": "Sa done yi dinañu and ak sa espace bu wóor.",
+    "Nouvelle vente": "Jaay bu bees", "Produit": "Mboot", "Quantité": "Limu", "Paiement": "Fay",
+    "Espèces": " xaalis", "Autre": "Beneen", "Enregistrer la vente": "Denc jaay bi", "Historique des ventes": "Jaay yi weesu",
+    "Aucune vente enregistrée.": "Amul jaay buñ denc.", "Produits et stocks": "Mboot yi ak stock", "Nom du produit": "Turum mboot",
+    "Prix de vente (FCFA)": "Njëgu jaay (FCFA)", "Coût unitaire (FCFA)": "Njëgu benn (FCFA)", "Stock initial": "Stock bu njëkk",
+    "Ajouter le produit": "Yokk mboot", "Inventaire": "Li nekk ci stock", "Aucun produit enregistré.": "Amul mboot buñ denc.",
+    "Enregistrer une dépense": "Denc fay", "Motif": "Lu tax", "Montant (FCFA)": "Limu xaalis (FCFA)",
+    "Enregistrer la dépense": "Denc fay bi", "Historique des dépenses": "Fay yi weesu", "Aucune dépense enregistrée.": "Amul fay buñ denc.",
+    "Déconnexion": "Génn", "Modifier": "Soppi", "Supprimer": "Màbb", "Coût d'achat :": "Njëgu jënd:",
+    "Stock :": "Stock:", "unité(s)": "benn(y)", "restant(s)": "des", "Créer votre compte": "Sos sa compte", "Démarrez avec 7 jours d'essai gratuit.": "Tambali ak 7 fan yu jarul fay.",
+    "Votre nom": "Sa tur", "Nom du commerce": "Turum jaay bi", "Adresse e-mail": "Email", "Mot de passe": "Baatu jàll",
+    "Créer mon compte": "Sos sama compte", "Se connecter": "Dugg", "Vous avez déjà un compte ?": "Am nga compte ba léegi?", "Pas encore de compte ?": "Amuloo compte?",
+    "Votre nom complet": "Sa tur yépp", "8 caractères minimum": "Lu néew 8 màndarga", "Ex. Boutique Camara": "Misaal: Boutique Camara",
+    "Ex. Baguette": "Misaal: Mburu", "Ex. Électricité": "Misaal: Électricité", "Choisir un produit": "Tànn mboot", "Aucune vente.": "Amul jaay.", "Aucun produit.": "Amul mboot.", "Aucune dépense.": "Amul fay."
+  }
 };
 
 const originalText = new WeakMap();
+const originalAttributes = new WeakMap();
+let languageObserver = null;
+let applyingLanguage = false;
 
 function applyLanguage(code) {
   const dict = translations[code] || translations.fr;
-  const targets = document.querySelectorAll(".tabs [data-view], main h2, main h3, #refresh, #logoutButton");
-  targets.forEach((el) => {
-    if (!originalText.has(el)) originalText.set(el, el.textContent.trim());
-    const original = originalText.get(el);
-    if (el.id === "welcomeName") return;
-    if (el.matches(".tabs [data-view]")) {
-      el.textContent = dict[original] || original;
-    } else if (el.childElementCount) {
-      const firstText = [...el.childNodes].find((node) => node.nodeType === Node.TEXT_NODE && node.textContent.trim());
-      if (firstText) firstText.textContent = " " + (dict[original] || original) + " ";
-    } else {
-      el.textContent = dict[original] || original;
+  if (applyingLanguage) return;
+  applyingLanguage = true;
+  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  let node;
+  while ((node = walker.nextNode())) {
+    const raw = node.nodeValue;
+    const trimmed = raw.trim();
+    if (!trimmed) continue;
+    if (!originalText.has(node)) originalText.set(node, trimmed);
+    const original = originalText.get(node);
+    const translated = dict[original] || original;
+    if (translated !== trimmed) {
+      const leading = raw.match(/^\s*/)?.[0] || "";
+      const trailing = raw.match(/\s*$/)?.[0] || "";
+      node.nodeValue = leading + translated + trailing;
     }
-  });
-  const hello = $("welcomeName")?.parentElement;
-  if (hello) {
-    const name = $("welcomeName");
-    const translated = code === "en" ? "Hello " : code === "wo" ? "Asalaam aleekum " : "Bonjour ";
-    hello.childNodes[0].textContent = translated;
-    if (name?.nextSibling) name.nextSibling.textContent = " 👋";
   }
+
+  // Translate placeholders and accessible labels too, while retaining their French originals.
+  document.querySelectorAll("input, textarea, select, button").forEach((el) => {
+    ["placeholder", "aria-label", "title"].forEach((attr) => {
+      if (!el.hasAttribute(attr)) return;
+      if (!originalAttributes.has(el)) originalAttributes.set(el, {});
+      const saved = originalAttributes.get(el);
+      if (!(attr in saved)) saved[attr] = el.getAttribute(attr);
+      const original = saved[attr];
+      el.setAttribute(attr, dict[original] || original);
+    });
+  });
+  applyingLanguage = false;
 }
 
 function setupLanguage() {
@@ -939,6 +1008,9 @@ function setupLanguage() {
     localStorage.setItem("sama_language", language.value);
     applyLanguage(language.value);
   });
+  if (languageObserver) languageObserver.disconnect();
+  languageObserver = new MutationObserver(() => applyLanguage(language.value || "fr"));
+  languageObserver.observe(document.body, { childList: true, subtree: true, characterData: true });
 }
 
 /* DÉMARRAGE */
