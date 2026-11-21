@@ -1,4 +1,5 @@
 
+
 /* SAMA BUSINESS V1
    Authentification Supabase + gestion locale IndexedDB.
    La synchronisation des données sera ajoutée dans une prochaine étape.
@@ -20,6 +21,7 @@ let currentUser = null;
 let currentBusinessId = null;
 let currentBusinessName = "";
 let currentSubscription = null;
+let editingProductId = null;
 
 const $ = (id) => document.getElementById(id);
 
@@ -171,7 +173,8 @@ async function syncSalesFromCloud() {
         product_id,
         product_name_snapshot,
         quantity,
-        unit_price
+        unit_price,
+        unit_cost
       )
     `)
     .eq("business_id", currentBusinessId)
@@ -193,6 +196,7 @@ async function syncSalesFromCloud() {
       productName: item?.product_name_snapshot || "Vente",
       quantity: Number(item?.quantity || 0),
       unitPrice: Number(item?.unit_price || 0),
+      unitCost: Number(item?.unit_cost || 0),
       total: Number(sale.total_amount || 0),
       payment: sale.payment_method,
       date: sale.occurred_at
@@ -209,6 +213,30 @@ async function syncSalesFromCloud() {
 
     transaction.oncomplete = resolve;
     transaction.onerror = () => reject(transaction.error);
+  });
+}
+
+async function syncExpensesFromCloud() {
+  const { data, error } = await supabaseClient
+    .from("expenses")
+    .select("id,name,amount,category,occurred_at")
+    .eq("business_id", currentBusinessId)
+    .order("occurred_at", { ascending: false });
+  if (error) throw error;
+  const expenses = (data || []).map((item) => ({
+    id: item.id,
+    name: item.name,
+    amount: Number(item.amount || 0),
+    category: item.category || "",
+    date: item.occurred_at
+  }));
+  await new Promise((resolve, reject) => {
+    const tx = db.transaction("expenses", "readwrite");
+    const store = tx.objectStore("expenses");
+    store.clear();
+    expenses.forEach((item) => store.put(item));
+    tx.oncomplete = resolve;
+    tx.onerror = () => reject(tx.error);
   });
 }
 
@@ -351,25 +379,15 @@ async function login(event) {
 }
 
 async function finishOnboarding(businessName, fullName) {
-  const { data, error } = await supabaseClient.functions.invoke(
-    "create-business",
-    {
-      body: {
-        business_name: businessName,
-        full_name: fullName
-      }
-    }
+  const { data: businessId, error } = await supabaseClient.rpc(
+    "create_business",
+    { p_business_name: businessName, p_full_name: fullName }
   );
 
-  if (error) {
-    throw new Error(error.message || "La création de l'entreprise a échoué.");
-  }
+  if (error) throw new Error(error.message || "La création de l'entreprise a échoué.");
+  if (!businessId) throw new Error("Supabase n'a pas retourné l'identifiant de l'entreprise.");
 
-  if (!data?.business_id) {
-    throw new Error("Supabase n'a pas retourné l'identifiant de l'entreprise.");
-  }
-
-  currentBusinessId = data.business_id;
+  currentBusinessId = businessId;
   currentBusinessName = businessName;
 
   localStorage.removeItem("sama_pending_business");
@@ -428,7 +446,7 @@ async function loadUserBusiness() {
 async function loadSubscription() {
   const { data, error } = await supabaseClient
     .from("subscriptions")
-    .select("plan,status,trial_started_at,trial_ends_at,base_plan,promo_plan,promo_ends_at,current_period_end")
+    .select("plan,status,current_period_end")
     .eq("business_id", currentBusinessId)
     .single();
 
@@ -448,24 +466,13 @@ function renderSubscription() {
     premium: "Premium"
   };
 
-  const trialEnd = sub.trial_ends_at
-    ? new Date(sub.trial_ends_at)
-    : null;
-
-  const promoEnd = sub.promo_ends_at
-    ? new Date(sub.promo_ends_at)
-    : null;
-
   let message = "";
-
   if (sub.status === "trial") {
-    message = trialEnd
-      ? `Essai gratuit de 7 jours — fin le ${trialEnd.toLocaleDateString("fr-FR")}.`
-      : "Ton essai gratuit est en cours.";
-  } else if (sub.promo_plan && promoEnd) {
-    message = `Avantage temporaire : ${planNames[sub.promo_plan] || sub.promo_plan} jusqu'au ${promoEnd.toLocaleDateString("fr-FR")}.`;
+    message = "Ton essai gratuit est en cours.";
+  } else if (sub.status === "active" && sub.current_period_end) {
+    message = `Abonnement ${planNames[sub.plan] || sub.plan} actif jusqu'au ${new Date(sub.current_period_end).toLocaleDateString("fr-FR")}.`;
   } else {
-    message = `Abonnement : ${planNames[sub.plan] || sub.plan}.`;
+    message = `Abonnement : ${planNames[sub.plan] || sub.plan} — statut : ${sub.status}.`;
   }
 
   target.textContent = message;
@@ -495,6 +502,13 @@ async function startApplication() {
   } catch (error) {
     console.error("Synchronisation des ventes :", error);
     alert("Erreur de synchronisation des ventes : " + error.message);
+  }
+
+  try {
+    await syncExpensesFromCloud();
+  } catch (error) {
+    console.error("Synchronisation des dépenses :", error);
+    alert("Erreur de synchronisation des dépenses : " + error.message);
   }
 
   await render();
@@ -535,7 +549,10 @@ async function render() {
     (sum, expense) => sum + Number(expense.amount || 0), 0
   );
 
-  const profit = revenue - expenseTotal;
+  const costOfGoods = todaySales.reduce((sum, sale) =>
+    sum + Number(sale.unitCost || 0) * Number(sale.quantity || 0), 0
+  );
+  const profit = revenue - costOfGoods - expenseTotal;
 
   const stockCount = products.reduce(
     (sum, product) => sum + Number(product.stock || 0), 0
@@ -580,10 +597,14 @@ function renderProducts(products) {
   }
 
   target.innerHTML = products.map((product) => `
-    <div class="record">
-      <strong>${escapeHTML(product.name)}</strong>
+    <div class="record product-record">
+      <div><strong>${escapeHTML(product.name)}</strong>
       <div>${formatMoney(product.price)} · Stock : ${escapeHTML(product.stock)}</div>
-      <small class="muted">Coût d'achat : ${formatMoney(product.cost)}</small>
+      <small class="muted">Coût d'achat : ${formatMoney(product.cost)}</small></div>
+      <div class="record-actions">
+        <button type="button" class="button secondary" data-edit-product="${escapeHTML(product.id)}">Modifier</button>
+        <button type="button" class="button danger" data-delete-product="${escapeHTML(product.id)}">Supprimer</button>
+      </div>
     </div>
   `).join("");
 }
@@ -683,41 +704,68 @@ function renderRecent(sales, expenses) {
 
 async function addProduct(event) {
   event.preventDefault();
-
   const name = $("productName")?.value.trim();
   const price = Number($("productPrice")?.value);
   const cost = Number($("productCost")?.value || 0);
   const stock = Number($("productStock")?.value);
-
-  if (!name || price < 0 || stock < 0 || !currentBusinessId) {
+  if (!name || !Number.isFinite(price) || price <= 0 || !Number.isFinite(cost) || cost < 0 || !Number.isFinite(stock) || stock < 0 || !currentBusinessId) {
     setMessage("productMessage", "Vérifie les informations du produit.", true);
     return;
   }
 
   const localProduct = {
-    id: uuid(),
-    name,
-    price,
-    cost,
-    stock,
-    threshold: 5,
-    date: new Date().toISOString()
+    id: editingProductId || uuid(), name, price, cost, stock,
+    threshold: 5, date: new Date().toISOString()
   };
-
-  const { error } = await supabaseClient
-    .from("products")
-    .insert(toCloudProduct(localProduct));
-
+  const cloudProduct = toCloudProduct(localProduct);
+  const request = editingProductId
+    ? supabaseClient.from("products").update({ name, sale_price: price, purchase_cost: cost, stock_quantity: stock, updated_at: new Date().toISOString() }).eq("id", editingProductId).eq("business_id", currentBusinessId)
+    : supabaseClient.from("products").insert(cloudProduct);
+  const { error } = await request;
   if (error) {
-    console.error("Erreur Supabase :", error);
     setMessage("productMessage", "Erreur d'enregistrement : " + error.message, true);
     return;
   }
-
   await put("products", localProduct);
-
+  editingProductId = null;
   $("productForm").reset();
+  const submit = $("productForm")?.querySelector('button[type="submit"]');
+  if (submit) submit.textContent = "Ajouter le produit";
   setMessage("productMessage", "Produit enregistré avec succès.");
+  await render();
+}
+
+async function editProduct(productId) {
+  const products = await all("products");
+  const product = products.find((item) => item.id === productId);
+  if (!product) return;
+  editingProductId = productId;
+  $("productName").value = product.name;
+  $("productPrice").value = product.price;
+  $("productCost").value = product.cost;
+  $("productStock").value = product.stock;
+  const submit = $("productForm")?.querySelector('button[type="submit"]');
+  if (submit) submit.textContent = "Enregistrer les modifications";
+  $("productForm")?.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+async function deleteProduct(productId) {
+  const product = (await all("products")).find((item) => item.id === productId);
+  if (!product || !confirm(`Supprimer « ${product.name} » de l'inventaire ?`)) return;
+  const { error } = await supabaseClient.from("products")
+    .update({ is_active: false, updated_at: new Date().toISOString() })
+    .eq("id", productId).eq("business_id", currentBusinessId);
+  if (error) {
+    setMessage("productMessage", "Suppression impossible : " + error.message, true);
+    return;
+  }
+  await new Promise((resolve, reject) => {
+    const tx = db.transaction("products", "readwrite");
+    tx.objectStore("products").delete(productId);
+    tx.oncomplete = resolve;
+    tx.onerror = () => reject(tx.error);
+  });
+  setMessage("productMessage", "Produit retiré de l'inventaire.");
   await render();
 }
 
@@ -787,6 +835,7 @@ async function addSale(event) {
     productName: product.name,
     quantity,
     unitPrice: Number(product.price),
+    unitCost: Number(product.cost || 0),
     total: Number(product.price) * quantity,
     payment,
     date: new Date().toISOString()
@@ -801,24 +850,30 @@ async function addSale(event) {
 
 async function addExpense(event) {
   event.preventDefault();
-
   const name = $("expenseName")?.value.trim();
   const amount = Number($("expenseAmount")?.value);
-
-  if (!name || amount <= 0) {
-    setMessage("expenseMessage", "Entre un nom et un montant valide.", true);
+  if (!name || !Number.isFinite(amount) || amount <= 0 || !currentBusinessId) {
+    setMessage("expenseMessage", "Entre un motif et un montant valide.", true);
     return;
   }
-
-  await put("expenses", {
+  const expense = {
     id: uuid(),
+    business_id: currentBusinessId,
     name,
-    amount,
-    date: new Date().toISOString()
+    amount: Math.round(amount),
+    category: null,
+    occurred_at: new Date().toISOString()
+  };
+  const { error } = await supabaseClient.from("expenses").insert(expense);
+  if (error) {
+    setMessage("expenseMessage", "Erreur d'enregistrement : " + error.message, true);
+    return;
+  }
+  await put("expenses", {
+    id: expense.id, name, amount: expense.amount, category: "", date: expense.occurred_at
   });
-
   $("expenseForm").reset();
-  setMessage("expenseMessage", "Dépense enregistrée.");
+  setMessage("expenseMessage", "Dépense enregistrée et synchronisée.");
   await render();
 }
 
@@ -842,15 +897,48 @@ function setupNavigation() {
 
 /* LANGUE */
 
+const translations = {
+  fr: { "Bonjour": "Bonjour", "Accueil": "Accueil", "Ventes": "Ventes", "Produits": "Produits", "Dépenses": "Dépenses", "Actualiser": "Actualiser", "Vue d'ensemble": "Vue d'ensemble", "Alertes de stock": "Alertes de stock", "Dernières opérations": "Dernières opérations", "Nouvelle vente": "Nouvelle vente", "Enregistrer la vente": "Enregistrer la vente", "Historique des ventes": "Historique des ventes", "Produits et stocks": "Produits et stocks", "Ajouter le produit": "Ajouter le produit", "Inventaire": "Inventaire", "Enregistrer une dépense": "Enregistrer une dépense", "Enregistrer la dépense": "Enregistrer la dépense", "Déconnexion": "Déconnexion", "Langue": "Langue" },
+  en: { "Bonjour": "Hello", "Accueil": "Home", "Ventes": "Sales", "Produits": "Products", "Dépenses": "Expenses", "Actualiser": "Refresh", "Vue d'ensemble": "Overview", "Alertes de stock": "Stock alerts", "Dernières opérations": "Recent activity", "Nouvelle vente": "New sale", "Enregistrer la vente": "Save sale", "Historique des ventes": "Sales history", "Produits et stocks": "Products and stock", "Ajouter le produit": "Add product", "Inventaire": "Inventory", "Enregistrer une dépense": "Add an expense", "Enregistrer la dépense": "Save expense", "Déconnexion": "Log out", "Langue": "Language" },
+  wo: { "Bonjour": "Asalaam aleekum", "Accueil": "Kër", "Ventes": "Jaay yi", "Produits": "Mbootayu jaay", "Dépenses": "Fay yi", "Actualiser": "Yeesal", "Vue d'ensemble": "Xoolal bu yàgg", "Alertes de stock": "Yëgle ci stock", "Dernières opérations": "Jëf yi mujj", "Nouvelle vente": "Jaay bu bees", "Enregistrer la vente": "Denc jaay bi", "Historique des ventes": "Jaay yi weesu", "Produits et stocks": "Mbootay ak stock", "Ajouter le produit": "Yokk mboot", "Inventaire": "Li nekk ci stock", "Enregistrer une dépense": "Denc fay", "Enregistrer la dépense": "Denc fay bi", "Déconnexion": "Génn", "Langue": "Làkk" }
+};
+
+const originalText = new WeakMap();
+
+function applyLanguage(code) {
+  const dict = translations[code] || translations.fr;
+  const targets = document.querySelectorAll(".tabs [data-view], main h2, main h3, #refresh, #logoutButton");
+  targets.forEach((el) => {
+    if (!originalText.has(el)) originalText.set(el, el.textContent.trim());
+    const original = originalText.get(el);
+    if (el.id === "welcomeName") return;
+    if (el.matches(".tabs [data-view]")) {
+      el.textContent = dict[original] || original;
+    } else if (el.childElementCount) {
+      const firstText = [...el.childNodes].find((node) => node.nodeType === Node.TEXT_NODE && node.textContent.trim());
+      if (firstText) firstText.textContent = " " + (dict[original] || original) + " ";
+    } else {
+      el.textContent = dict[original] || original;
+    }
+  });
+  const hello = $("welcomeName")?.parentElement;
+  if (hello) {
+    const name = $("welcomeName");
+    const translated = code === "en" ? "Hello " : code === "wo" ? "Asalaam aleekum " : "Bonjour ";
+    hello.childNodes[0].textContent = translated;
+    if (name?.nextSibling) name.nextSibling.textContent = " 👋";
+  }
+}
+
 function setupLanguage() {
   const language = $("language");
   if (!language) return;
-
   const saved = localStorage.getItem("sama_language") || "fr";
   language.value = saved;
-
+  applyLanguage(saved);
   language.addEventListener("change", () => {
     localStorage.setItem("sama_language", language.value);
+    applyLanguage(language.value);
   });
 }
 
@@ -871,6 +959,12 @@ async function init() {
     $("logoutButton")?.addEventListener("click", logout);
 
     $("productForm")?.addEventListener("submit", addProduct);
+    $("productsList")?.addEventListener("click", (event) => {
+      const editId = event.target.closest("[data-edit-product]")?.dataset.editProduct;
+      const deleteId = event.target.closest("[data-delete-product]")?.dataset.deleteProduct;
+      if (editId) editProduct(editId);
+      if (deleteId) deleteProduct(deleteId);
+    });
     $("saleForm")?.addEventListener("submit", addSale);
     $("expenseForm")?.addEventListener("submit", addExpense);
 
@@ -908,4 +1002,5 @@ async function init() {
 }
 
 document.addEventListener("DOMContentLoaded", init);
+
 
